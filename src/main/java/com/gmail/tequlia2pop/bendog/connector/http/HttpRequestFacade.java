@@ -1,16 +1,24 @@
-package com.gmail.tequlia2pop.bendog;
+package com.gmail.tequlia2pop.bendog.connector.http;
 
-import java.io.IOException;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.security.Principal;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.Map;
-
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import javax.servlet.http.HttpUpgradeHandler;
+import javax.servlet.http.Part;
+import javax.servlet.http.Cookie;
 import javax.servlet.AsyncContext;
 import javax.servlet.DispatcherType;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
 import javax.servlet.ServletInputStream;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -20,12 +28,12 @@ import javax.servlet.ServletResponse;
  * 
  * @author tequlia2pop
  */
-public class RequestFacade implements ServletRequest {
+public class HttpRequestFacade implements HttpServletRequest {
 
 	// private，无法从类的外部进行访问。
-	private ServletRequest request = null;
+	private HttpServletRequest request;
 
-	public RequestFacade(Request request) {
+	public HttpRequestFacade(HttpRequest request) {
 		this.request = request;
 	}
 
@@ -155,9 +163,9 @@ public class RequestFacade implements ServletRequest {
 	}
 
 	@Override
+	// @Deprecated
 	public String getRealPath(String path) {
-		return request.getRealPath(path);
-		// return request.getServletContext().getRealPath(path);
+		return request.getServletContext().getRealPath(path);
 	}
 
 	@Override
@@ -193,7 +201,7 @@ public class RequestFacade implements ServletRequest {
 	@Override
 	public AsyncContext startAsync(ServletRequest servletRequest, ServletResponse servletResponse)
 			throws IllegalStateException {
-		return request.startAsync();
+		return request.startAsync(servletRequest, servletResponse);
 	}
 
 	@Override
@@ -216,4 +224,166 @@ public class RequestFacade implements ServletRequest {
 		return request.getDispatcherType();
 	}
 
+	@Override
+	public String getAuthType() {
+		return request.getAuthType();
+	}
+
+	@Override
+	public Cookie[] getCookies() {
+		return request.getCookies();
+	}
+
+	@Override
+	public long getDateHeader(String name) {
+		return request.getDateHeader(name);
+	}
+
+	@Override
+	public String getHeader(String name) {
+		return request.getHeader(name);
+	}
+
+	@Override
+	public Enumeration<String> getHeaders(String name) {
+		return request.getHeaders(name);
+	}
+
+	@Override
+	public Enumeration<String> getHeaderNames() {
+		return request.getHeaderNames();
+	}
+
+	@Override
+	public int getIntHeader(String name) {
+		return request.getIntHeader(name);
+	}
+
+	@Override
+	public String getMethod() {
+		return request.getMethod();
+	}
+
+	@Override
+	public String getPathInfo() {
+		return request.getPathInfo();
+	}
+
+	@Override
+	public String getPathTranslated() {
+		return request.getPathTranslated();
+	}
+
+	@Override
+	public String getContextPath() {
+		return request.getContextPath();
+	}
+
+	@Override
+	public String getQueryString() {
+		return request.getQueryString();
+	}
+
+	@Override
+	public String getRemoteUser() {
+		return request.getRemoteUser();
+	}
+
+	@Override
+	public boolean isUserInRole(String role) {
+		return request.isUserInRole(role);
+	}
+
+	@Override
+	public Principal getUserPrincipal() {
+		return request.getUserPrincipal();
+	}
+
+	@Override
+	public String getRequestedSessionId() {
+		return request.getRequestedSessionId();
+	}
+
+	@Override
+	public String getRequestURI() {
+		return request.getRequestURI();
+	}
+
+	@Override
+	public StringBuffer getRequestURL() {
+		return request.getRequestURL();
+	}
+
+	@Override
+	public String getServletPath() {
+		return request.getServletPath();
+	}
+
+	@Override
+	public HttpSession getSession(boolean create) {
+		return request.getSession(create);
+	}
+
+	@Override
+	public HttpSession getSession() {
+		return request.getSession();
+	}
+
+	@Override
+	public String changeSessionId() {
+		return request.changeSessionId();
+	}
+
+	@Override
+	public boolean isRequestedSessionIdValid() {
+		return request.isRequestedSessionIdValid();
+	}
+
+	@Override
+	public boolean isRequestedSessionIdFromCookie() {
+		return request.isRequestedSessionIdFromCookie();
+	}
+
+	@Override
+	public boolean isRequestedSessionIdFromURL() {
+		return request.isRequestedSessionIdFromURL();
+	}
+
+	@Override
+	// @Deprecated
+	public boolean isRequestedSessionIdFromUrl() {
+		return request.isRequestedSessionIdFromURL();
+	}
+
+	@Override
+	public boolean authenticate(HttpServletResponse response)
+			throws IOException, ServletException {
+		return request.authenticate(response);
+	}
+
+	@Override
+	public void login(String username, String password) throws ServletException {
+		request.login(username, password);
+	}
+
+	@Override
+	public void logout() throws ServletException {
+		request.logout();
+	}
+
+	@Override
+	public Collection<Part> getParts() throws IOException, ServletException {
+		return request.getParts();
+	}
+
+	@Override
+	public Part getPart(String name) throws IOException, ServletException {
+		return request.getPart(name);
+	}
+
+	@Override
+	public <T extends HttpUpgradeHandler> T upgrade(Class<T> handlerClass)
+			throws IOException, ServletException {
+		return request.upgrade(handlerClass);
+	}
 }

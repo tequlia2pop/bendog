@@ -1,4 +1,4 @@
-package com.gmail.tequlia2pop.bendog;
+package com.gmail.tequlia2pop.bendog.connector.http;
 
 import java.io.File;
 
@@ -7,7 +7,7 @@ import java.io.File;
  * 
  * @author tequlia2pop
  */
-public class Constants {
+public final class Constants {
 	
 	/** 
 	 *  WEB_ROOT 是我们的 HTML 和其他文件所在的目录。
@@ -18,4 +18,12 @@ public class Constants {
 			+ "webroot";*/
 	public static final String WEB_ROOT = System.getProperty("user.dir") + File.separator + "src"
 			+ File.separator + "main" + File.separator + "webapp";
+	
+	public static final String Package = "com.gmail.tequlia2pop.bendog.connector.http";
+	
+	public static final int DEFAULT_CONNECTION_TIMEOUT = 60000;
+	
+	public static final int PROCESSOR_IDLE = 0;
+	
+	public static final int PROCESSOR_ACTIVE = 1;
 }

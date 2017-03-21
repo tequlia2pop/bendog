@@ -4,19 +4,24 @@
 
 	<groupId>com.gmail.tequlia2pop</groupId>
 	<artifactId>bendog</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.2-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<name>bendog</name>
 	<url>http://maven.apache.org</url>
 
 	<properties>
+		<!-- 通用属性 -->
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<java.version>1.8</java.version>
 		
 		<!--  Java SE / Java EE 依赖 -->
 		<servlet.version>3.1.0</servlet.version>
+		
+		<!-- 测试 -->
+		<junit.version>4.12</junit.version>
+		<hamcrest.version>1.3</hamcrest.version>
 	</properties>
 
 	<dependencies>
@@ -25,6 +30,20 @@
 			<groupId>javax.servlet</groupId>
 			<artifactId>javax.servlet-api</artifactId>
 			<version>${servlet.version}</version>
+		</dependency>
+		
+		<!-- 测试 -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.hamcrest</groupId>
+			<artifactId>hamcrest-library</artifactId>
+			<version>${hamcrest.version}</version>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 </project>

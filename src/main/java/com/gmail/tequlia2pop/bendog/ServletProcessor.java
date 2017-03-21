@@ -8,6 +8,12 @@ import java.net.URLStreamHandler;
 
 import javax.servlet.Servlet;
 
+import com.gmail.tequlia2pop.bendog.connector.http.Constants;
+import com.gmail.tequlia2pop.bendog.connector.http.HttpRequest;
+import com.gmail.tequlia2pop.bendog.connector.http.HttpRequestFacade;
+import com.gmail.tequlia2pop.bendog.connector.http.HttpResponse;
+import com.gmail.tequlia2pop.bendog.connector.http.HttpResponseFacade;
+
 /**
  * Servlet 处理器。
  * 它负责载入相应的 Servlet 类，调用其 service() 方法，同时传入 ServletRequest 和 ServletResponse 对象。
@@ -27,28 +33,23 @@ public class ServletProcessor {
 	 * @param request
 	 * @param response
 	 */
-	public void process(Request request, Response response) {
-		String uri = request.getUri();
+	public void process(HttpRequest request, HttpResponse response) {
+		String uri = request.getRequestURI();
 		String servletName = uri.substring(uri.lastIndexOf("/") + 1);
-		
+
 		URLClassLoader loader = null;
 		try {
-			// 创建 URLClassLoader
-			URL[] urls = new URL[1];// 每一个 URL 都指明类加载器要到哪里查找类。若 URL 以 "/" 结尾，则表名它指向一个目录；否则，URL 默认指向一个 JAR 文件
+			URL[] urls = new URL[1];
 			URLStreamHandler streamHandler = null;// 显式声明参数类型，以明确调用哪一个构造函数
 			File classPath = new File(Constants.WEB_ROOT);
-			// the forming of repository is taken from the createClassLoader method in
-			// org.apache.catalina.startup.ClassLoaderFactory
 			String repository = (new URL("file", null,
 					classPath.getCanonicalPath() + File.separator)).toString();
-			// the code for forming the URL is taken from the addRepository method in
-			// org.apache.catalina.loader.StandardClassLoader class.
 			urls[0] = new URL(null, repository, streamHandler);
 			loader = new URLClassLoader(urls);
 		} catch (IOException e) {
 			System.out.println(e.toString());//
 		}
-		
+
 		Class<?> myClass = null;
 		try {
 			myClass = loader.loadClass(servletName);
@@ -57,11 +58,13 @@ public class ServletProcessor {
 		}
 
 		Servlet servlet = null;
-		RequestFacade requestFacade = new RequestFacade(request);
-	    ResponseFacade responseFacade = new ResponseFacade(response);
 		try {
 			servlet = (Servlet) myClass.newInstance();
+			HttpRequestFacade requestFacade = new HttpRequestFacade(request);
+			HttpResponseFacade responseFacade = new HttpResponseFacade(response);
 			servlet.service(requestFacade, responseFacade);
+			// 调用完 service() 方法后，还会调用一次 HttpResponse 类的 finishResponse()
+			response.finishResponse();
 		} catch (Exception e) {
 			System.out.println(e.toString());//
 		} catch (Throwable e) {
