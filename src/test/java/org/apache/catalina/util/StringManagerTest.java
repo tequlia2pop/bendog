@@ -8,7 +8,7 @@ import org.junit.Test;
 
 public class StringManagerTest {
 
-	private static final String PACKAGE_NAME = "com.gmail.tequlia2pop.bendog.connector.http";
+	private static final String PACKAGE_NAME = "org.apache.catalina.connector.http";
 
 	private StringManager manager;
 
@@ -29,7 +29,6 @@ public class StringManagerTest {
 
 	@Test
 	public void testGetString() {
-		assertEquals("HTTP connector has already been initialized",
-				manager.getString("httpConnector.alreadyInitialized"));
+		assertEquals("HTTP连接器已初始化", manager.getString("httpConnector.alreadyInitialized"));
 	}
 }

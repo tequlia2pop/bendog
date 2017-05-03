@@ -1,3 +1,3 @@
 # BenDog
 
-参见 doc/documentation.md 文档。
+参见 [说明文档](doc/documentation.md)。

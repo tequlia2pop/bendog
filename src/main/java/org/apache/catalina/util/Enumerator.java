@@ -80,4 +80,5 @@ public final class Enumerator<T> implements Enumeration<T> {
 	public T nextElement() throws NoSuchElementException {
 		return iterator.next();
 	}
+	
 }

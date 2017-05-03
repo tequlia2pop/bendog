@@ -1,12 +1,6 @@
 # 文档
 
-该 Servlet 容器构建了一个连接器（connector）模块，它用一个更好的方法来创建请求和响应对象。
-
-兼容 Servlet 2.3 和 2.4 规范的连接器必须要负责创建 `javax.servlet.http.HttpServletRequest` 和 `javax.servlet.http.HttpServletResponse` 对象，井将它们作为 Servlet 的 `service()` 的参数传入。
-
-连接器负责解析 HTTP 请求，使 Servlet 实例能够获取到请求头、Cookie 和 请求参数等信息。有了这些增强功能后，就可以从 Servlet 中获得完整的响应信息了（例如 `ModernServlet`）。
-
-该连接器是 Tomcat 4 中默认连接器的一个简化版。由于该连接器性能不高，已经不推荐使用。例如，所有的 HTTP 请求头都会被解析，即使并不会在 Servlet 中使用它们。因此，默认连接器运行缓慢，现在已经被 Coyote 连接器所替代。
+对 Tomcat 4 中的默认连接器的精简版进行说明。该连接器已经弃用，而是推荐使用另一个称为 Coyote 的执行速度更快的连接器。但是，原先的默认连接器更简单，更容易理解。
 
 要在 Windows 平台下运行该应用程序，需要在工作目录下执行如下命令：
 
@@ -18,12 +12,6 @@ java -classpath ./lib/servlet.jar;./com.gmail.tequlia2pop.bendog.startup.Bootstr
 
 ```
 java -classpath ./lib/servlet.jar:./com.gmail.tequlia2pop.bendog.startup.Bootstrap
-```
-
-要显示 index.html 文件，可以使用如下的 URL：
-
-```
-http://localhost:8080/index.html
 ```
 
 要调用 `PrimitiveServlet` 类，可以使用如下的 URL：
@@ -38,146 +26,125 @@ http://localhost:8080/servlet/PrimitiveServlet
 http://localhost:8080/servlet/ModernServlet?userName=tarzan&password=pwd
 ```
 
-## 应用程序结构
+注意，现在请求 index.html 文件时，无法获取到输出。因为应用程序中已经将处理静态资源的处理器移除了。
 
-应用程序包含3个模块：连接器模块、启动模块和核心模块。
+## 概述
 
-* 启动模块
+Tomcat 中的连接器是一个独立的莫快快，可以被插入到 Servlet 容器中。有很多连接器可以使用，包括 Coyote、mod_jk、mod_jk2 和 mod_webapp 等。Tomcat 中使用连接器必须满足以下要求：
 
-	只有一个 `Bootstrap` 类，它负责启动应用程序。
+* 实现 `org.apache.catalina.Connector` 接口；
+* 负责创建实现了 `org.apache.catalina.Request` 接口的 request 对象；
+* 负责创建实现了 `org.apache.catalina.Response` 接口的 response 对象。
 
-* 连接器模块
+Tomcat 4 中的默认连接器与上一版的连接器类似。它会等待传入的 HTTP 请求，创建 request 对象和 response 对象，然后调用 `org.apache.catalina.Container` 接口的 `invoke()` 方法，将 request 对象和 response 对象传给 Servlet 容器。
 
-	* 连接器以及支持类（`HttpConnector` 和 `HttpProcessor`）；
-	* 表示 HTTP 请求的类（`HttpRequest`）及其支持类；
-	* 表示 HTTP 响应的类（`HttpResponse`）及其支持类；
-	* 外观类（`HttpRequestFacade` 和 `HttpResponseFacade`）；
-	* 常量类。
+Tomcat 4 中的默认连接器使用上一版中连接器没有的优化方法。首先，使用了一个对象池来避免了频繁创建对象带来的性能损耗。其次，在很多地方，使用了字符数组来代替字符串。
 
-* 核心模块
+注意，Tomcat 4 中的默认连接器实现了 HTTP 1.1 的全部新特性，也可以为使用 HTTP 1.0 和 HTTP 0.9 协议的客户端提供服务。
 
-	包含两个类，`ServletProcessor` 类和 `StaticResourceProcessor` 类。
+## Connector 接口
 
--------------------------------------------------------------------
+Tomcat 的连接器必须实现 `org.apache.catalina.Connector` 接口。该接口中声明的方法中最重要的是下面几个：
 
-下面是应用程序的 UML 类图。其中，与 `HttpRequest` 类和 `HttpResponse` 类相关的类被省略掉了。
+* getContainer()
+* setContainer()
+* createRequest()
+* createResponse()
 
-![](images/uml.png)
+下面是默认连接器的 UML 类图。注意，这里省略了 `Request` 和 `Response` 接口的实现类。除了 `SimpleContainer` 类之外，其他类胡哦接口的 `org.apache.catalina` 包名前缀也省略掉了。
 
-* HttpConnector：HTTP 连接器。它负责创建一个服务器套接字，并等待传入的 HTTP 请求。
+![](images/connector-uml.png)
 
-* HttpProcessor：HTTP 处理器。它负责创建 `HttpRequest` 和 `HttpResponse` 对象；解析 HTTP 请求的第一行内容和请求头信息，并填充到 `HttpRequest` 对象；最后将  `HttpRequest` 和 `HttpResponse` 对象传递给 `ServletProcessor` 或 `StaticResourceProcessor` 处理。
+连接器与 Servlet 容器是一对一的关系，箭头指向表示连接器知道要用哪个 Servlet 容器。另外，`HttpConnector` 类与 `HttpProcessor` 类是一对多的关系。
 
-	`HttpProcessor` 类使用其 `parse()` 方法解析 HTTP 请求中的请求行和请求头信息，并将其填充到 `HttpRequest` 对象，但是并不会解析查询字符串或请求体中的参数。这个任务由各个 `HttpRequest` 对象自己完成。这样，只有当 Servlet 实例需要使用某个参数时，才会由 `HttpRequest` 对象去解析查询字符串或请求体。
+## HttpConnector 类
 
-* ServletProcessor：它负责载入相应的 Servlet 类，调用其 `service()` 方法，同时传入 `ServletRequest` 和 `ServletResponse` 对象。
+`HttpConnector` 类实现了 `org.apache.catalina.Connector` 接口（使其可以成为 Catalina 中的连接器）、`java.lang.Runnable` 接口（确保它的实例在自己的线程中运行）和 `org.apache.catalina.Lifecycle` 接口。`Lifecycle` 接口用于维护实现了该接口的每个 Catalina 组件的生命周期。
 
-	URI 的格式为：`servlet/servletName`，其中 `servletName` 是请求的 Servlet 资源的类名。
+关于 `Lifecycle` 接口，现在只需要知道在创建一个 `HttpConnector` 实例后，应该调用其 `initialize()` 方法和 `start()` 方法；而且在组件的整个生命周期中，这两个方法只应该被调用一次。
 
-	注意：每次请求 Servlet 都会载入相应的 Servlet 类，并且不会调用 Servlet 的 `init()` 和 `destroy()` 方法。
+### 创建服务器套接字
 
-* StaticResourceProcessor：静态资源处理器，委托响应对象来处理静态资源。
+`initialize()` 会调用一个私有方法 `open()`，后者返回一个 `java.net.ServerSocket` 实例，赋值给成员变量 `serverSocket`。但是，这里的 `open()` 是从一个服务器套接字工厂得到的一个实例。
 
-* StringManager：用于处理应用程序中不同包中错误消息的国际化操作。
+### 维护 HttpProcessor 实例
 
-* SocketInputStream：连接器使用 `SocketInputStream` 类从套接字的 `InputStream` 对象中读取字节流。`SocketInputStream` 实例是 `java.io.InputStream` 实例的包装类，它提供了两个重要的方法：`readRequestLine()` 读取 HTTP 请求中第1行的内容，`readHeader()` 读取所有的请求头信息。由于从套接字的输入流中处理字节流是从第一个字节读取到最后一个字节的内容（无法从后向前读取），所以 `readRequestLine()` 必须在 `readHeader()` 方法之前调用。
+`HttpConnector` 实例维护了一个 `HttpProcessor` 实例池，每个 `HttpProcessor` 实例都运行在其自己的线程中。这样，`HttpConnector` 实例就可以同时处理多个 HTTP 请求了。同时，使用 `HttpProcessor` 实例池还避免了每次都为新请求创建 `HttpProcessor` 对象的操作。
 
--------------------------------------------------------------------
+在 `HttpConnector` 中，创建的 `HttpProcessor` 实例的个数由两个变量决定：`minProcessors` 和 `maxProcessors`。
 
-下面展示了 `HttpRequest` 及其相关类的 UML 类图：
+初始，`HttpConnector` 对象会根据 `minProcessors` 的数值来创建对应数量的 `HttpProcessor` 实例。若是请求的数目超过了 `HttpProcessor` 实例所能处理的范围，`HttpConnector` 实例就会创建更多的 `HttpProcessor` 实例，直到其数量达到 `maxProcessors` 限定的范围。如果 `HttpProcessor` 实例的数目已经达到了 `maxProcessors` 限定的范围，但还是不够用。此时引入的 HTTP 请求就会被忽略掉。若希望 `HttpConnector` 可以持续地创建 `HttpProcessor` 实例，就可以将 `maxProcessors` 变量的值设置为负数。
 
-![](images/HttpRequest.png)
+每个 `HttpProcessor` 实例负责解析 HTTP 请求行和请求头，填充 request 对象。因此，每个 `HttpProcessor` 对象都关联一个 request 对象和一个 response 对象。`HttpProcessor` 类的构造函数会调用 `HttpConnector` 类的 `createRequest()` 和 `createResponse()` 方法。
 
-`HttpRequest` 表示HTTP 请求。该类实现了 `HttpServletRequest` 接口；虽然其中很多方法都是空方法，但是已经可以从中获取引入的 HTTP 请求的请求头、Cookie 信息和请求参数等信息了。`HttpRequestFacade` 是请求对象的外观类。
+### 提供 HTTP 请求服务
 
-`HttpRequest` 对象会被转型为 `HttpServletRequest` 对象，然后作为参数传递给被调用的 Servlet 实例的 `service()` 方法。因此，必须正确地设置每个 `HttpRequest` 实例的成员变量供 Servlet 实例使用。需要设置的值包括：请求方法、URI、查询字符串、参数	、Cookie 和 其他一些请求头信息。因为连接器并不知道被调用的 Servlet 会使用哪些变量，所以连接器必须解析从 HTTP 请求中获取的所有信息。但是，解析 HTTP 请求涉及一些系统开销大的字符串操作以及一些其他操作。若是连接器仅仅解析会被 Servlet 实例用到的值就会节省很多 CPU 周期。
+`HttpConnector` 类的主要逻辑在其 `run()` 方法中，在该方法中服务器套接字循环等待 HTTP 请求，直到 `HttpConnector` 对象关闭。
 
--------------------------------------------------------------------
+对于每个引入的 HTTP 请求，通过 `createProcessor()` 获得一个 `HttpProcessor` 对象。如果 `HttpProcessor` 栈中还有可用的实例，则直接从栈中弹出一个 `HttpProcessor` 实例。如果栈已经空了，而已经创建的 `HttpProcessor` 实例的数量还没有超过限定的最大值，则创建一个新的 `HttpProcessor` 实例；如果 `HttpProcessor` 实例的数量超过了限定的最大值，则返回 `null`。
 
-下面展示了 `HttpResponse` 类及其相关类的 UML 类图：
+如果 `createProcessor()` 的返回不为 `null`，则会将套接字传入 `HttpProcessor` 类的 `assign()` 方法中。否则，服务器会简单地关闭套接字，不会对这个引入的 HTTP 请求进行处理。
 
-![](images/HttpResponse.png)
+注意：`assign()` 直接返回，而不要等待 `HttpProcessor` 实例完成解析，这样 `HttpConnector` 才能持续服务传入的 HTTP 请求，而 `HttpProcessor` 实例是在其自己的线程中完成解析 HTTP 请求的工作的。
 
-`HttpResponse` 表示 HTTP 响应。它实现了 `javax.servlet.http.HttpServletResponse` 接口。`HttpResponseFacade` 是响应对象的外观类。
+## HttpProcessor 类
 
-* 在处理静态资源时，响应对象会读取静态资源文件的内容，并直接使用底层套接字的 `OutputStream` 来进行输出。
+`HttpProcessor` 类实现了 `java.lang.Runnable` 接口，这样每个 `HttpProcessor` 实例都可以运行在自己的线程中了，称为“处理器线程”。
 
-* 在 Servlet 中，可以使用响应对象的 `PrintWriter` 对象向输出流中写字符，但在向浏览器发送字符的时候，实际上都是字节流。这里使用 `ResponseStream` 类的实例作为 `PrintWriter` 的输出流对象。`ResponseStream` 是 `java.io.OutputStream` 类的直接子类；在内部实际上也是委托响应对象使用底层套接字的 `OutputStream` 来进行输出。
+`HttpProcessor` 类的 `run()` 会依次做如下几件事：
 
-	也可以使用 `ResponseWriter` 类来向客户端发送信息，该类继承自 `PrintWriter` 类，重写了所有的 `print()` 和 `println()` 方法，这样对这些方法进行调用时，会自动将信息发送给客户端。
+* 获取套接字对象；
+* 处理来自此套接字的请求；
+* 调用连接器的 `recycle()` 将当前的 `HttpProcessor` 实例压回栈中。
 
-注意，在该应用中没有实现向客户端发送响应头的功能。
+**关于 `assign()` 的异步实现**
 
-## 解析 HTTP 请求
+连接器会将套接字对象分配给对应的处理器，处理器需要该套接字对象才能对 HTTP 请求进行解析。在连接器线程中，它会尝试获取套接字对象（这可能需要花费一些时间），同时创建并启动一个处理器线程（也可能复用已有的处理器线程）;也就是说，在处理器线程运行过程中，它很可能还没有从连接器线程那里获得套接字对象。要使得连接器线程和处理器线程能够正常协作，定义了一个名为 `available` 的布尔变量表示是否有新的可用套接字，然后使用 `wait()`、`notifyAll()` 来进行线程间通信。
 
-解析 HTTP 请求相对来说比较复杂，将其分成5个小节来进行说明：
+## Request 对象
 
-* 读取套接字的输入流
-* 解析请求行
-* 解析请求头
-* 解析 Cookie
-* 获取参数
+下图展示了 `Request` 接口及其实现类的 UML 类图。注意，除了 `javax.servlet` 和 `javax.servlet.http` 包下的类外，完全限定名中的 `org.apache.catalina` 省略掉了。
 
-### 读取套接字的输入流
-	
-使用 `SocketInputStream` 来包装套接字的输入流。该类提供了一些方法来获取请求行和请求头信息。
+![](images/request-uml.png)
 
-### 解析请求行
+其中，`RequestBase` 类和 `HttpRequestBase` 类都有各自的外观类，分别是 `RequestFacade` 类和 `HttpRequestFacade` 类，而最终的实现类是 `HttpRequestImpl` 类。
 
-`HttpProcessor` 类的 `parseRequest()` 方法负责解析 HTTP 请求的第1行内容，包括请求方法、请求 URI、请求协议和版本，以及查询字符串和 session ID。请求行信息由一个 `HttpRequestLine` 类表示。
+## Response 对象
 
-关于请求 URI，有以下注意事项：
+![](images/response-uml.png)
 
-* 请求 URI 后面可以加上可选的查询字符串。当浏览器禁用 Cookie 时，也可以将会话标识（jsessionid）嵌入到查询字符串中。
-* 当请求 URI 是一个绝对路径中的值时，需要删除其协议和主机名部分。
-* 对请求 URI 要进行规范化。例如，出现"\"的地方会被替换为"/"。
+## 处理请求
 
-### 解析请求头
+`process()` 执行以下三个操作：解析连接、解析请求、解析请求头。在完成解析后，`process()` 将 request 和 response 对象作为参数传入 Servlet 容器的 `invoke()`。
 
-`HttpProcessor` 类的 `parseHeader` 方法解析了一些“简单”的请求头。请求头信息由一个 `HttpHeader` 类表示。 
+* 解析连接  `parseConnection()` 会从套接字中获取 Internet 地址，检查是否使用了代理，最后将 Internet 地址、服务器的端口号以及 Socket 对象都赋值给 request 对象。
 
-### 解析 Cookie
+* 解析请求  `parseRequest()` 实际上是上一版中相似方法的全功能版本。
 
-Cookie 是由浏览器作为 HTTP 请求头的一部分发送的。这样的请求头的名称是 "cookie"，其对应值是一些名/值对。下面是一个 Cookie 请求头的例子，其中包含两个 Cookie：userName 和 password。
+* 解析请求头  `parseHeader()` 使用了 `org.apache.catalina.connector.http` 包内的 `HttpHeader` 类和 `DefaultHeader` 类。`HttpHeader` 类表示一个请求头；注意，该类内部没有使用字符串，而是使用了字符数组来避免代价高昂的字符串操作。`DefaultHeaders` 类包含了字符数组形式的标准 HTTP 请求头。 
 
-```
-Cookie: userName=budi; password=pwd
-```
+这里对 HTTP 1.1 三个新特性提供了支持：
 
-对 Cookie 的解析是通过 `org.apache.catalina.util.RequestUtil` 类的 `parseCookieHeader()` 方法完成的。 
+*   **持久连接**  HTTP 1.1 引入了持久连接。使用持久连接后，页面和被页面引用的资源都会使用同一个连接来下载。考虑到建立/关闭 HTTP 连接是一个系统开销很大的操作，使用同一个连接来下载所有的资源节省很多时间和工作量。
 
-### 获取参数
+	若协议为 HTTP 1.0，说明当前不支持持久连接，则 `parseRequest()` 会将 `keepAlive` 设置为 `false`。
 
-参数只需要解析一次即可，而且也只会解析一次。因为，在请求体中包含参数，解析参数的工作会使 `SocketInputStream` 类读完整个字节流。
+*  **状态码100的使用**  如果客户端发送了较长的请求体，服务器却拒绝接收的话，会造成较大的浪费。为了解决这个问题，使用 HTTP 1.1 的客户端可以在向服务器发送较长的请求体之前，先发送一个确认请求头，并等待服务器的确认。
 
-因此，在调用 `javax.servlet.http.HttpServletRequest` 的 `getParameter()`、`getParameterMap()`、`getParameterNames` 或 `getParameterValues()` 方法之前，都不需要解析参数。在 `HttpRequest` 类中，这4个方法的实现都会先调用 `parseParameter()` 方法；而 `parseParameter()` 会通过检查	 `parsed` 布尔变量来获知是否已经完成对参数的解析；只有在 `parsed` 变量为 `false` 时，才会调用 `org.apache.Catalina.util.RequestUtil` 类的 `parseParameters()` 来执行解析。当解析完成时，参数会存储在一个 `HashMap` 中。
+	* 若是在 HTTP 请求头中发现了 `Expect: 100-continue`，则 `parseHeaders()` 将设置 `sendAck` 为 `true`。
 
-参数可以出现在查询字符串或请求体中。若用户使用 GET 方法请求 Servlet，则所有的参数都会在查询字符串中；若用户使用 POST 方法请求 Servlet，则请求体中也可能会有参数（此时，请求头 `content-length` 的值会大于 0，`content-type` 的值为 "application/x-www-form-urlencoded"）。
+	* 若请求协议为 HTTP 1.1，而且客户端也发出了 `Expect: 100-continue` 请求头，则 `process()` 会调用 `ackRequest()` 来向客户端发送请求确认。
 
-注意：所有参数的名/值对都存储在一个 `HashMap` 对象中。因为不允许对参数值进行修改，所以这里使用了一个特殊的 `HashMap` 类：`org.apache.catalina.util.ParameterMap`。`ParameterMap` 继承自 `java.util.HashMap`，其中有一个名为 `locked` 的布尔变量。只有当 `locked` 变量的值为 `false` 时，才可以对 `ParameterMap` 中的名/值对进行添加、更新或者删除操作。否则，会抛出 `IllegalStateException` 异常。
+*  **块编码**
 
-## StringManager
+	`HttpRequestStream` 扩展自 `ReqeustStream`，`HttpResponseStream` 扩展自 `ResponseStream`，两者提供了对块编码的支持。
 
-`org.apache.catalina.util.StringManager` 用于处理应用程序中不同包中错误消息的国际化操作。
+## 简单的 Container 应用程序
 
-将保存错误消息的 properties 属性文件划分到不同的包中。例如，`org.apache.catalina.connector` 包下的 properties 属性文件包含该包中任何类可能抛出的所有的异常消息。当服务器运行时，会产生 `StringManager` 类的多个实例，每个实例都会读取某个包下的指定的 properties 文件。
+为了说明如何使用默认连接器，准备了以下两个类：
 
-对错误消息的国际化支持，当前支持以下三种语言：
+* `SimpleContainer` 实现了 `org.apache.catalina.Container` 接口，这样它就可以与默认连接器进行关联。
 
-* LocalStrings.properties 英文版错误消息
-* LocalStrings_es.properties 西班牙语版错误消息
-* LocalStrings_ja.properties 日语版错误消息
+* `Bootstrap` 用于启动应用程序。
 
-`StringManager` 是单例类。外部只能通过调用其公共静态方法 `getManager()` 来获得其实例，并传入一个指明了包名的参数。每个 `StringManager` 实例都会以这个包名作为其键，存储在一个 Hashtable 中。
-
-例如，要向从 `com.gmail.tequlia2pop.bendog.connector.http` 包中获得错误码 "httpConnector.alreadyInitialized" 对应的错误消息：
-
-```java
-@Test
-public void testGetString() {
-	StringManager manager = StringManager
-			.getManager("com.gmail.tequlia2pop.bendog.connector.http");
-	assertEquals("HTTP connector has already been initialized",
-			manager.getString("httpConnector.alreadyInitialized"));
-}
-```
+相比上一版的应用程序，这里已经移除了连接器模块，以及对 `ServletProcessor` 类和 `StaticResourceProcessor` 类的使用，所以现在不能请求静态页面了。
